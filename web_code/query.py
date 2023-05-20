@@ -5,8 +5,8 @@ def query_get_pos(username):
 
 def query_upsert_mkt_spend(database, name):
     return f"""INSERT INTO {database}.mkt_spent
-            (marketer, spend, product_name, channel, `date`, id, note)
-            SELECT marketer, spend, product_name, channel, DATE(CONCAT_WS('-', year, month, day)) `date`, COALESCE(id, CONCAT(CONCAT_WS('-', year, month, day), "|","Facebook","|",marketer,"|",product_name)) id, note FROM 
+            (marketer, spend, product_name, channel, `date`, note)
+            SELECT marketer, spend, product_name, channel, DATE(CONCAT_WS('-', year, month, day)) `date`, note FROM 
             {database}.mkt_spend_temp_{name} temp
             WHERE COALESCE(marketer,product_name, year, month, day, spend) IS NOT NULL
             AND DATE(CONCAT_WS('-', year, month, day)) is not null

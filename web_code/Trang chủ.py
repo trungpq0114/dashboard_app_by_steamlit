@@ -90,12 +90,12 @@ if authentication_status:
                             pw="1234",
                             db="test"))
         if role == 'admin':
-            df = pd.read_sql(f"""SELECT id, marketer, 'hpl_malay' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_malay.mkt_spent m where spend > 0
+            df = pd.read_sql(f"""SELECT marketer, 'hpl_malay' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_malay.mkt_spent m where spend > 0
                             UNION
-                            SELECT id, marketer, 'hpl_phil' market,year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_phil.mkt_spent m where spend > 0
+                            SELECT marketer, 'hpl_phil' market,year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_phil.mkt_spent m where spend > 0
                             ORDER BY date DESC""", engine_full)
         else:
-            df = pd.read_sql(f"""SELECT id, marketer, '{pos}' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM {pos}.mkt_spent m where marketer = '{name}' and spend > 0
+            df = pd.read_sql(f"""SELECT marketer, '{pos}' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM {pos}.mkt_spent m where marketer = '{name}' and spend > 0
                                 ORDER BY date DESC""", engine_full) 
         engine_full.dispose()
         return df
@@ -175,7 +175,7 @@ if authentication_status:
 
     df = get_data_mkt_spend(name, st.session_state['role'])
     if df.shape[0] == 0:
-        df.loc[len(df.index)] = ['', name, 'hpl_malay', 1945 ,1 , 1, '', '', '', 0, 'Sản phẩm A: abcshop.com'] 
+        df.loc[len(df.index)] = [name, 'hpl_malay', 1945 ,1 , 1, '', '', '', 0, 'Sản phẩm A: abcshop.com'] 
     df_hoa_don = get_data_mkt_bill(name, st.session_state['role'])
     df_product_names = get_product_names()
     df_marketer_names = get_marketer_names()
@@ -185,6 +185,7 @@ if authentication_status:
         st.header(df.shape[0])
     authenticator.logout("Logout", "sidebar")
     st.sidebar.title(f"Xin chào {name}")
+    st.sidebar.title(f"Username: {username}")
     st.sidebar.header("Bộ lọc tại đây:")
 
     market = st.sidebar.multiselect(
@@ -263,31 +264,29 @@ if authentication_status:
             st.subheader(f"{count_product} sản phẩm")
 
         st.markdown("""---""")
-
-        st.dataframe(df_selection[['market','marketer','year','month','day','channel','product_name','spend','note']], use_container_width=True)
+        st.dataframe(df_selection[['market','marketer','year','month','day','channel','product_name','spend','note']], use_container_width=True, hide_index = True)
 
         
         engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
-                            pw="123",
+                            pw="1234",
                             db="test"))
         with st.form("edit_mkt_spend", clear_on_submit=True):
             with st.expander("Nhập chi phí Marketing?"):
-                st.text(""" Không cần nhập ID nếu chưa có sẵn nhé ạ!!!""")
-                df_to_edit = df_selection[['id', 'month','day','channel','product_name', 'spend','note']]
-                # df_to_edit = df_to_edit.set_index('id')
+                st.text(""" Mỗi dòng hãy chọn một id bất kì""")
+                df_to_edit = df_selection[['month','day','channel','product_name', 'spend','note']]
                 edited_df = st.experimental_data_editor(df_to_edit, hide_index = False,use_container_width=True, num_rows='dynamic')
             edited_df['marketer'] = name
             edited_df['year'] = 2023
             edited_df = edited_df.replace(r'^\s*$', np.nan , regex=True)
-            # st.session_state['edited_df'] = edited_df
+            st.session_state['edited_df'] = edited_df
             submitted = st.form_submit_button("Cập nhật chi phí MKT!")
             if submitted:
-                edited_df.to_sql(f'mkt_spend_temp_{str(hash(name))}', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = pos, index=False)
+                st.session_state['edited_df'].to_sql(f'mkt_spend_temp_{str((hash(name) % 10**8))}', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = pos, index=False)
                 engine_full.dispose()
                 c = engine_full.raw_connection()
                 cursor = c.cursor()
-                result = cursor.execute(query_upsert_mkt_spend(pos, str(hash(name))))
+                result = cursor.execute(query_upsert_mkt_spend(pos, str((hash(name) % 10**8))))
                 c.commit()
                 c.close()
                 engine_full.dispose()
