@@ -272,7 +272,7 @@ if authentication_status:
                             db="test"))
         with st.form("edit_mkt_spend", clear_on_submit=False):
             with st.expander("Nhập chi phí Marketing?"):
-                st.text(""" Vui lòng nhập cột đầu tiên trước cột ID!!!""")
+                st.text(""" Cột đầu tiên trước cột ID không được để trống nhé ạ, xin lỗi về sự bất tiện này!!!""")
                 edited_df = st.experimental_data_editor(df_selection[['id', 'month','day','channel','product_name', 'spend','note']], use_container_width=True, num_rows='dynamic')
                 edited_df['marketer'] = name
                 edited_df['year'] = 2023
