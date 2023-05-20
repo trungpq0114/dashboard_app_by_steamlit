@@ -83,9 +83,9 @@ if authentication_status:
                             pw="123",
                             db="test"))
         if role == 'nhan_vien':
-            df = pd.read_sql(f"""SELECT 'Malay' market, year(date) year, month(date) month, date, channel, product_name, spend FROM hpl_malay.mkt_spent m where spend > 0
+            df = pd.read_sql(f"""SELECT marketer, 'Malay' market, year(date) year, month(date) month, date, channel, product_name, spend, note FROM hpl_malay.mkt_spent m where spend > 0
                             UNION
-                            SELECT 'Phil' market,year(date) year, month(date) month, date, channel, product_name, spend FROM hpl_phil.mkt_spent m where spend > 0
+                            SELECT marketer, 'Phil' market,year(date) year, month(date) month, date, channel, product_name, spend, note FROM hpl_phil.mkt_spent m where spend > 0
                             ORDER BY date DESC""", engine_full)
         else:
             df = pd.read_sql(f"""SELECT 'Malay' market, year(date) year, month(date) month, channel, product_name, spend FROM hpl_malay.mkt m where marketer = '{name}' and spend > 0
@@ -176,7 +176,7 @@ if authentication_status:
 
     df = get_data_mkt_spend(name, st.session_state.role)
     if df.shape[0] == 0:
-        df.loc[len(df.index)] = ['Malay',1945,1,'','','',0] 
+        df.loc[len(df.index)] = [name, 'Malay',1945,1,'','','',0,'Sản phẩm A: abcshop.com'] 
     df_hoa_don = get_data_mkt_bill(name, st.session_state.role)
     df_product_names = get_product_names()
     df_marketer_names = get_marketer_names()
@@ -246,7 +246,7 @@ if authentication_status:
         st.markdown("##")
         # TOP KPI's
         total_fee = int(df_selection["spend"].sum())
-        average_rating = df_selection["curency_ratio"].max()
+        average_rating = round(df_selection["channel"].nunique(), 2)
         count_product = round(df_selection["product_name"].nunique(), 2)
 
         left_column, middle_column, right_column = st.columns(3)
@@ -262,7 +262,7 @@ if authentication_status:
 
         st.markdown("""---""")
 
-        st.dataframe(df_selection[['market','marketer','date','channel','product_name', 'spend','comment']], use_container_width=True)
+        st.dataframe(df_selection[['market','marketer','date','channel','product_name', 'spend','note']], use_container_width=True)
 
         st.markdown("""---""")
 
