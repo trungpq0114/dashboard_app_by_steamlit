@@ -1,0 +1,12 @@
+{
+    "database": {
+        "host": "103.170.118.214",
+        "user": "trungpq",
+        "password": "1234"
+    },
+    "database_web_account": {
+        "host": "103.170.118.214",
+        "user": "web_user",
+        "password": "New-^Password123-Here"
+    }
+}
