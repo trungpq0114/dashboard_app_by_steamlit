@@ -9,22 +9,27 @@ authenticator = stauth.Authenticate(credentials, "homepage", "random_key", cooki
 name, authentication_status, username = authenticator.login("Login", "main")
 
 if authentication_status:
-    @st.cache_data(ttl=200)
-    def get_role(username):
-        engine = create_engine(f'mysql+pymysql://user_web:user_web@103.170.118.214/test'
-                            .format(user="user_web",
-                                    pw="user_web",
-                                    db='test'))
+    @st.cache_data(ttl=150)
+    def get_infor(username):
+        engine = create_engine(connection_string_web_account.format(user=user_account,
+                                                                    pw=password_account,
+                                                                    db='web_data'))
 
-        get_role = f"SELECT role FROM test.account_wed where usernames = '{username}'"
+        get_role = query_get_role(username)
         c = engine.raw_connection()
         cursor = c.cursor()
         result = cursor.execute(get_role)
         role = cursor.fetchone()[0]
+        get_pos = query_get_pos(username)
+        c = engine.raw_connection()
+        cursor = c.cursor()
+        result = cursor.execute(get_pos)
+        pos = cursor.fetchone()[0]
         engine.dispose()
-        return role
+        return role, pos
+        
 
-    role = get_role(username)
+    role, pos = get_infor(username)
 
     @st.cache_data(ttl=200)
     def get_data_account():

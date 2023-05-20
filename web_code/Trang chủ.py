@@ -58,7 +58,7 @@ days = list(range(1,32))
 
 if authentication_status:
     @st.cache_data(ttl=15)
-    def get_role(username):
+    def get_infor(username):
         engine = create_engine(connection_string_web_account.format(user=user_account,
                                                                     pw=password_account,
                                                                     db='web_data'))
@@ -68,10 +68,16 @@ if authentication_status:
         cursor = c.cursor()
         result = cursor.execute(get_role)
         role = cursor.fetchone()[0]
+        get_pos = query_get_pos(username)
+        c = engine.raw_connection()
+        cursor = c.cursor()
+        result = cursor.execute(get_pos)
+        pos = cursor.fetchone()[0]
         engine.dispose()
-        return role
+        return role, pos
+    
 
-    role = get_role(username)
+    role, pos = get_infor(username)
     if "role" not in st.session_state:
         st.session_state.role = role
     
@@ -83,9 +89,9 @@ if authentication_status:
                             pw="123",
                             db="test"))
         if role == 'nhan_vien':
-            df = pd.read_sql(f"""SELECT marketer, 'Malay' market, year(date) year, month(date) month, date, channel, product_name, spend, note FROM hpl_malay.mkt_spent m where spend > 0
+            df = pd.read_sql(f"""SELECT id, marketer, 'Malay' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_malay.mkt_spent m where spend > 0
                             UNION
-                            SELECT marketer, 'Phil' market,year(date) year, month(date) month, date, channel, product_name, spend, note FROM hpl_phil.mkt_spent m where spend > 0
+                            SELECT id, marketer, 'Phil' market,year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_phil.mkt_spent m where spend > 0
                             ORDER BY date DESC""", engine_full)
         else:
             df = pd.read_sql(f"""SELECT 'Malay' market, year(date) year, month(date) month, channel, product_name, spend FROM hpl_malay.mkt m where marketer = '{name}' and spend > 0
@@ -176,7 +182,7 @@ if authentication_status:
 
     df = get_data_mkt_spend(name, st.session_state.role)
     if df.shape[0] == 0:
-        df.loc[len(df.index)] = [name, 'Malay',1945,1,'','','',0,'Sản phẩm A: abcshop.com'] 
+        df.loc[len(df.index)] = ['', name, 'Malay', 1945 ,1 , 1, '', '', '', 0, 'Sản phẩm A: abcshop.com'] 
     df_hoa_don = get_data_mkt_bill(name, st.session_state.role)
     df_product_names = get_product_names()
     df_marketer_names = get_marketer_names()
@@ -262,19 +268,31 @@ if authentication_status:
 
         st.markdown("""---""")
 
-        st.dataframe(df_selection[['market','marketer','date','channel','product_name', 'spend','note']], use_container_width=True)
+        st.dataframe(df_selection[['market','marketer','year','month','day','channel','product_name','spend','note']], use_container_width=True)
 
-        edited_df = st.experimental_data_editor(df_selection[['marketer','date','channel','product_name', 'spend','note']], use_container_width=True)
         
         engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
                             pw="123",
                             db="test"))
-        
-        with st.expander("Cập nhật chi phí Marketing?"):
-            edited_df.to_sql('mkt_spend_temp', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = 'hpl_malay', index=False)
-
-        engine_full.dispose()
+        with st.form("edit_mkt_spend", clear_on_submit=False):
+            with st.expander("Nhập chi phí Marketing?"):
+                st.text(""" Vui lòng nhập cột đầu tiên trước cột ID!!!""")
+                edited_df = st.experimental_data_editor(df_selection[['id', 'month','day','channel','product_name', 'spend','note']], use_container_width=True, num_rows='dynamic')
+                edited_df['marketer'] = name
+                edited_df['year'] = 2023
+                st.session_state.edited_df = edited_df
+            submitted = st.form_submit_button("Cập nhật chi phí MKT!")
+            if submitted:
+                st.session_state.edited_df.to_sql('mkt_spend_temp', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = pos, index=False)
+                engine_full.dispose()
+                c = engine_full.raw_connection()
+                cursor = c.cursor()
+                result = cursor.execute(query_upsert_mkt_spend(pos))
+                c.commit()
+                c.close()
+                engine_full.dispose()
+                st.success("Đã cập nhật, hãy kiểm tra lại dữ liệu!")
         st.markdown("""---""")
 
         # SALES BY PRODUCT LINE [BAR CHART]
