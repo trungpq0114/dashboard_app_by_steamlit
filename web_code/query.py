@@ -18,3 +18,17 @@ def query_upsert_mkt_spend(database, name):
             , `date` = DATE(CONCAT_WS('-', year, month, day))
             , note = temp.note; 
             """
+
+
+def query_upsert_mkt_bill(database, name):
+    return f"""INSERT INTO {database}.mkt_bill
+            (marketer, `type`, `date`, nap, thanh_toan, note)
+            SELECT marketer, `type`, DATE(CONCAT_WS('-', year, month, day)) `date`, nap, thanh_toan, note FROM 
+            {database}.mkt_bill_temp_{name} temp
+            WHERE COALESCE(marketer, type, year, month, day) IS NOT NULL
+            AND DATE(CONCAT_WS('-', year, month, day)) is not null
+            ON	DUPLICATE KEY UPDATE
+                nap = temp.nap
+                , thanh_toan = temp.thanh_toan 
+                , note = temp.note; 
+            """

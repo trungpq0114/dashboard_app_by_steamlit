@@ -107,23 +107,14 @@ if authentication_status:
                             pw="1234",
                             db="test"))
         if role == 'admin':
-            df = pd.read_sql(f"""SELECT	'hpl_malay' market,	marketer, `date` , type, year(date) year, month(date) month, 
-                                    case when LEFT(type,3) = "Nạp" then value
-                                        when LEFT(type,3) = "Hóa" then value *-1
-                                    end thay_doi, note
-                                FROM hpl_malay.mkt_bill
+            df = pd.read_sql(f"""SELECT	'hpl_malay' market,	marketer, `date` , type, year(date) year, month(date) month, day(date) day, nap, thanh_toan, note
+                                FROM hpl_malay.mkt_bill where nap <> 0 or thanh_toan <> 0
                                 UNION ALL
-                                SELECT	'hpl_phil' market,	marketer, `date` , type, year(date) year, month(date) month, 
-                                    case when LEFT(type,3) = "Nạp" then value
-                                        when LEFT(type,3) = "Hóa" then value *-1
-                                    end thay_doi, note
-                                FROM hpl_phil.mkt_bill""", engine_full)
+                                SELECT	'hpl_phil' market,	marketer, `date` , type, year(date) year, month(date) month, day(date) day, nap, thanh_toan, note
+                                FROM hpl_phil.mkt_bill where nap > 0 or thanh_toan > 0""", engine_full)
         else:
-            df = pd.read_sql(f"""SELECT	'{pos}' market,	marketer, `date` , type, year(date) year, month(date) month, 
-                                    case when LEFT(type,3) = "Nạp" then value
-                                        when LEFT(type,3) = "Hóa" then value *-1
-                                    end thay_doi, note
-                                FROM {pos}.mkt_bill WHERE  marketer = '{name}' """, engine_full)            
+            df = pd.read_sql(f"""SELECT	'{pos}' market,	marketer, `date` , type, year(date) year, month(date) month, day(date) day, nap, thanh_toan, note
+                                FROM {pos}.mkt_bill WHERE  marketer = '{name}' and (nap <> 0 or thanh_toan <> 0) """, engine_full)            
         engine_full.dispose()
         return df
 
@@ -175,7 +166,7 @@ if authentication_status:
 
     df = get_data_mkt_spend(name, st.session_state['role'])
     if df.shape[0] == 0:
-        df.loc[len(df.index)] = [name, 'hpl_malay', 1945 ,1 , 1, '', '', '', 0, 'Sản phẩm A: abcshop.com'] 
+        df.loc[len(df.index)] = [name, 'hpl_malay', 2023 ,1 , 1, '', '', '', 0, 'Sản phẩm A: abcshop.com'] 
     df_hoa_don = get_data_mkt_bill(name, st.session_state['role'])
     df_product_names = get_product_names()
     df_marketer_names = get_marketer_names()
@@ -193,7 +184,7 @@ if authentication_status:
 
     year = st.sidebar.multiselect(
         "Chọn năm:",
-        options=df["year"].unique(),
+        options=df["year"].sort_values().unique(),
         default=df["year"].max()
     )
 
@@ -378,50 +369,66 @@ if authentication_status:
 
         st.markdown("##")
         # TOP KPI's
-        tong_du_no = int(df_selection_tong_hoa_don["thay_doi"].sum())
-        thay_doi = int(df_selection_hoa_don["thay_doi"].sum())
-        hoa_don_facebook = int(df_selection_hoa_don.loc[df_selection_hoa_don['type'] == "Hóa đơn facebook"]["thay_doi"].sum())
-        hoa_don_tiktok = int(df_selection_hoa_don.loc[df_selection_hoa_don['type'] == "Hóa đơn tiktok"]["thay_doi"].sum())
-        nap_tiktok = int(df_selection_hoa_don.loc[df_selection_hoa_don['type'] == "Nạp tiktok"]["thay_doi"].sum())
-        nap_facebook = int(df_selection_hoa_don.loc[df_selection_hoa_don['type'] == "Nạp facebook"]["thay_doi"].sum())
-
-        column_1, column_2, column_3 = st.columns(3)
-        column_4, column_5, column_6, = st.columns(3)
+        tong_du_no = int(df_selection_tong_hoa_don["nap"].sum()) - int(df_selection_tong_hoa_don["thanh_toan"].sum())
+        thay_doi = int(df_selection_hoa_don["nap"].sum()) - int(df_selection_hoa_don["thanh_toan"].sum())
+        nap_trong_ki = int(df_selection_hoa_don["nap"].sum())
+        thanh_toan_trong_ki = int(df_selection_hoa_don["thanh_toan"].sum())
+        column_1, column_2 = st.columns(2)
+        column_3, column_4 = st.columns(2)
         with column_1:
             st.caption("**Tổng dư - nợ:**")
             st.subheader(f"{tong_du_no:,} vnđ")
         with column_2:
-            st.caption("**Thanh toán facebook:**")
-            st.subheader(f"{hoa_don_facebook:,} vnđ")
-        with column_3:
-            st.caption("**Thanh toán tiktok:**")
-            st.subheader(f"{hoa_don_tiktok:,} vnđ")
-        with column_4:
-            st.caption("**Thay đổi:**")
+            st.caption("**Thay đổi trong kì:**")
             st.subheader(f"{thay_doi:,} vnđ")
-        with column_5:
-            st.caption("**Tiền nạp facebook:**")
-            st.subheader(f"{nap_facebook:,} vnđ")
-        with column_6:
-            st.caption("**Tiền nạp tiktok:**")
-            st.subheader(f"{nap_tiktok:,} vnđ")
-
+        with column_3:
+            st.caption("**Tổng nạp trong kì:**")
+            st.subheader(f"{nap_trong_ki:,} vnđ")
+        with column_4:
+            st.caption("**Tổng thanh toán trong kì:**")
+            st.subheader(f"{thanh_toan_trong_ki:,} vnđ")
         st.markdown("""---""")
 
-        st.dataframe(df_selection_hoa_don[['market','marketer','date','type','thay_doi','note']], use_container_width=True)
+        st.dataframe(df_selection_hoa_don[['market','marketer','date','type','nap', 'thanh_toan','note']], use_container_width=True)
 
         st.markdown("""---""")
+        
+        engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
+                    .format(user="trungpq",
+                            pw="1234",
+                            db="test"))
+        
+        with st.form("edit_mkt_bill", clear_on_submit=True):
+            with st.expander("Nhập hoá đơn Marketing?"):
+                st.text(""" *Lưu ý: Mỗi lần sửa, hãy chọn một STT bất kì cho mỗi dòng""")
+                
+                df_bill_to_edit = df_selection_hoa_don[['month','day','type','nap', 'thanh_toan','note']]
 
+                df_bill_to_edit.index.name='STT'
+                edited_df_bill = st.experimental_data_editor(df_bill_to_edit, hide_index = False,use_container_width=True, num_rows='dynamic')
+            edited_df_bill['marketer'] = name
+            edited_df_bill['year'] = 2023
+            edited_df_bill = edited_df_bill.replace(r'^\s*$', np.nan , regex=True)
+            st.session_state['edited_df_bill'] = edited_df_bill
+            submitted = st.form_submit_button("Cập nhật chi phí MKT!")
+            if submitted:
+                st.session_state['edited_df_bill'].to_sql(f'mkt_bill_temp_{str((hash(name) % 10**8))}', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = pos, index=False)
+                engine_full.dispose()
+                c = engine_full.raw_connection()
+                cursor = c.cursor()
+                result = cursor.execute(query_upsert_mkt_bill(pos, str((hash(name) % 10**8))))
+                c.commit()
+                c.close()
+                engine_full.dispose()
+                st.success("Đã cập nhật, hãy kiểm tra lại dữ liệu!")
         # SALES BY PRODUCT LINE [BAR CHART]
-        sales_by_product_line = (
-            df_selection_hoa_don.groupby(by=["date"]).sum()[["thay_doi"]].sort_values(by="date")
-        )
+        sales_by_product_line = df_selection_hoa_don.groupby(by=["date"]).sum()[["nap"]].sort_values(by="date")
         fig_product_sales = px.bar(
             sales_by_product_line,
-            x="thay_doi",
+            x="nap",
             y=sales_by_product_line.index,
             orientation="h",
-            title="<b>Hóa đơn theo ngày</b>",
+            title="<b>Tổng hợp nạp</b>",
             color_discrete_sequence=["#0083B8"] * len(sales_by_product_line),
             template="plotly_white",
         )
@@ -431,12 +438,12 @@ if authentication_status:
         )
 
         # SALES BY HOUR [BAR CHART]
-        sales_by_hour = df_selection_hoa_don.groupby(by=["type"]).sum()[["thay_doi"]].sort_values(by="type")
+        sales_by_hour = df_selection_hoa_don.groupby(by=["date"]).sum()[["thanh_toan"]].sort_values(by="date")
         fig_hourly_sales = px.bar(
             sales_by_hour,
             x=sales_by_hour.index,
-            y="thay_doi",
-            title="<b>Hóa đơn theo loại</b>",
+            y="thanh_toan",
+            title="<b>Tổng hợp thanh toán</b>",
             color_discrete_sequence=["#0083B8"] * len(sales_by_hour),
             template="plotly_white",
         )
