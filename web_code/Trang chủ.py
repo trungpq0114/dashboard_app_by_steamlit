@@ -57,7 +57,7 @@ months = list(range(1,13))
 days = list(range(1,32))
 
 if authentication_status:
-    # @st.cache_data(ttl=15)    
+    @st.cache_data(ttl=1500)    
     def get_infor(username):
         engine = create_engine(connection_string_web_account.format(user=user_account,
                                                                     pw=password_account,
@@ -86,7 +86,7 @@ if authentication_status:
 
         engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
-                            pw="123",
+                            pw="1234",
                             db="test"))
         if role == 'admin':
             df = pd.read_sql(f"""SELECT id, marketer, 'hpl_malay' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_malay.mkt_spent m where spend > 0
@@ -126,7 +126,7 @@ if authentication_status:
         engine_full.dispose()
         return df
 
-    # @st.cache_data(ttl=15)
+    @st.cache_data(ttl=500)
     def get_product_names():
         engine_full = create_engine('mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
@@ -138,7 +138,7 @@ if authentication_status:
         engine_full.dispose()
         return df
     
-    # @st.cache_data(ttl=15)
+    @st.cache_data(ttl=500)
     def get_marketer_names():
         engine_full = create_engine('mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
@@ -272,14 +272,16 @@ if authentication_status:
                             db="test"))
         with st.form("edit_mkt_spend", clear_on_submit=False):
             with st.expander("Nhập chi phí Marketing?"):
-                st.text(""" Cột đầu tiên trước cột ID không được để trống nhé ạ, xin lỗi về sự bất tiện này!!!""")
-                edited_df = st.experimental_data_editor(df_selection[['id', 'month','day','channel','product_name', 'spend','note']], use_container_width=True, num_rows='dynamic')
+                st.text(""" Không cần nhập ID nếu chưa có sẵn nhé ạ!!!""")
+                df_to_edit = df_selection[['id', 'month','day','channel','product_name', 'spend','note']]
+                df_to_edit = df_to_edit.reset_index(drop=True)
+                edited_df = st.experimental_data_editor(df_to_edit, use_container_width=True, num_rows='dynamic')
                 edited_df['marketer'] = name
                 edited_df['year'] = 2023
-                st.session_state.edited_df = edited_df
+                st.session_state['edited_df'] = edited_df
             submitted = st.form_submit_button("Cập nhật chi phí MKT!")
             if submitted:
-                st.session_state.edited_df.to_sql('mkt_spend_temp', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = pos, index=False)
+                st.session_state['edited_df'].to_sql('mkt_spend_temp', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = pos, index=False)
                 engine_full.dispose()
                 c = engine_full.raw_connection()
                 cursor = c.cursor()
