@@ -6,6 +6,7 @@ import calendar
 from datetime import datetime 
 import json
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import streamlit as st
 import streamlit_authenticator as stauth
@@ -172,10 +173,10 @@ if authentication_status:
         )
         return selected
 
-    df = get_data_mkt_spend(name, st.session_state.role)
+    df = get_data_mkt_spend(name, st.session_state['role'])
     if df.shape[0] == 0:
         df.loc[len(df.index)] = ['', name, 'hpl_malay', 1945 ,1 , 1, '', '', '', 0, 'Sản phẩm A: abcshop.com'] 
-    df_hoa_don = get_data_mkt_bill(name, st.session_state.role)
+    df_hoa_don = get_data_mkt_bill(name, st.session_state['role'])
     df_product_names = get_product_names()
     df_marketer_names = get_marketer_names()
     selected = streamlit_menu()
@@ -228,7 +229,7 @@ if authentication_status:
             options=df["channel"].unique(),
             default=df["channel"].unique()
         )
-        if st.session_state.role == "admin":
+        if st.session_state['role'] == "admin":
             list_product_list = df["product_name"].sort_values().unique()
         else:
             list_product_list = df.loc[df['marketer'] == name]["product_name"].sort_values().unique()
@@ -241,7 +242,7 @@ if authentication_status:
         df_selection = df.query(
             """channel == @channel & product_name == @product_name & month == @month & year == @year & market == @market & marketer == @marketer"""
         )
-
+        
         # ---- MAINPAGE ----
         st.header(f":bar_chart: Chi tiết chi phí ADS - {name}")
         st.markdown("##")
@@ -270,22 +271,23 @@ if authentication_status:
                     .format(user="trungpq",
                             pw="123",
                             db="test"))
-        with st.form("edit_mkt_spend", clear_on_submit=False):
+        with st.form("edit_mkt_spend", clear_on_submit=True):
             with st.expander("Nhập chi phí Marketing?"):
                 st.text(""" Không cần nhập ID nếu chưa có sẵn nhé ạ!!!""")
                 df_to_edit = df_selection[['id', 'month','day','channel','product_name', 'spend','note']]
-                df_to_edit = df_to_edit.reset_index(drop=True)
-                edited_df = st.experimental_data_editor(df_to_edit, use_container_width=True, num_rows='dynamic')
-                edited_df['marketer'] = name
-                edited_df['year'] = 2023
-                st.session_state['edited_df'] = edited_df
+                # df_to_edit = df_to_edit.set_index('id')
+                edited_df = st.experimental_data_editor(df_to_edit, hide_index = False,use_container_width=True, num_rows='dynamic')
+            edited_df['marketer'] = name
+            edited_df['year'] = 2023
+            edited_df = edited_df.replace(r'^\s*$', np.nan , regex=True)
+            # st.session_state['edited_df'] = edited_df
             submitted = st.form_submit_button("Cập nhật chi phí MKT!")
             if submitted:
-                st.session_state['edited_df'].to_sql('mkt_spend_temp', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = pos, index=False)
+                edited_df.to_sql(f'mkt_spend_temp_{str(hash(name))}', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = pos, index=False)
                 engine_full.dispose()
                 c = engine_full.raw_connection()
                 cursor = c.cursor()
-                result = cursor.execute(query_upsert_mkt_spend(pos))
+                result = cursor.execute(query_upsert_mkt_spend(pos, str(hash(name))))
                 c.commit()
                 c.close()
                 engine_full.dispose()
