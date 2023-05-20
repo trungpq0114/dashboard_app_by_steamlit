@@ -11,6 +11,7 @@ import streamlit as st
 import streamlit_authenticator as stauth
 from streamlit_option_menu import option_menu
 from sqlalchemy import create_engine
+from query import *
 
 st.set_page_config(page_title="Sales Dashboard", page_icon=":bar_chart:", layout="wide")
 
@@ -62,7 +63,7 @@ if authentication_status:
                                                                     pw=password_account,
                                                                     db='web_data'))
 
-        get_role = f"SELECT role FROM web_data.account_web where username = '{username}'"
+        get_role = query_get_role(username)
         c = engine.raw_connection()
         cursor = c.cursor()
         result = cursor.execute(get_role)
@@ -75,79 +76,79 @@ if authentication_status:
         st.session_state.role = role
     
     @st.cache_data(ttl=15)
-    def get_data_chi_phi(name, role):
+    def get_data_mkt_spend(name, role):
 
         engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
                             pw="123",
                             db="test"))
-        if role == '4':
-            df = pd.read_sql(f"""SELECT 'Malay' market, year(date) year, month(date) month, m.* FROM hpl.mkt m where mkt_fee > 0
+        if role == 'nhan_vien':
+            df = pd.read_sql(f"""SELECT 'Malay' market, year(date) year, month(date) month, date, channel, product_name, spend FROM hpl_malay.mkt_spent m where spend > 0
                             UNION
-                            SELECT 'Phil' market,year(date) year, month(date) month, m.* FROM hpl_phil.mkt m where mkt_fee > 0
+                            SELECT 'Phil' market,year(date) year, month(date) month, date, channel, product_name, spend FROM hpl_phil.mkt_spent m where spend > 0
                             ORDER BY date DESC""", engine_full)
         else:
-            df = pd.read_sql(f"""SELECT 'Malay' market, year(date) year, month(date) month, m.* FROM hpl.mkt m where marketer = '{name}' and mkt_fee > 0
+            df = pd.read_sql(f"""SELECT 'Malay' market, year(date) year, month(date) month, channel, product_name, spend FROM hpl_malay.mkt m where marketer = '{name}' and spend > 0
                             UNION
-                            SELECT 'Phil' market,year(date) year, month(date) month, m.* FROM hpl_phil.mkt m where marketer = '{name}' and mkt_fee > 0
+                            SELECT 'Phil' market,year(date) year, month(date) month, channel, product_name, spend FROM hpl_phil.mkt m where marketer = '{name}' and spend > 0
                             ORDER BY date DESC""", engine_full) 
         engine_full.dispose()
         return df
     
     @st.cache_data(ttl=15)
-    def get_data_hoa_don(name, role):
-        engine_full = create_engine(f'mysql+pymysql://trungpq:123@103.170.118.214/test'
+    def get_data_mkt_bill(name, role):
+        engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
-                            pw="123",
+                            pw="1234",
                             db="test"))
-        if role == '4':
+        if role == 'nhan_vien':
             df = pd.read_sql(f"""SELECT	'Malay' market,	marketer, `date` , type, year(date) year, month(date) month, 
                                     case when LEFT(type,3) = "Nạp" then value
                                         when LEFT(type,3) = "Hóa" then value *-1
                                     end thay_doi, note
-                                FROM hpl.bill
+                                FROM hpl_malay.mkt_bill
                                 UNION ALL
                                 SELECT	'Phil' market,	marketer, `date` , type, year(date) year, month(date) month, 
                                     case when LEFT(type,3) = "Nạp" then value
                                         when LEFT(type,3) = "Hóa" then value *-1
                                     end thay_doi, note
-                                FROM hpl_phil.bill""", engine_full)
+                                FROM hpl_phil.mkt_bill""", engine_full)
         else:
             df = pd.read_sql(f"""SELECT	'Malay' market,	marketer, `date` , type, year(date) year, month(date) month, 
                                     case when LEFT(type,3) = "Nạp" then value
                                         when LEFT(type,3) = "Hóa" then value *-1
                                     end thay_doi, note
-                                FROM hpl.bill WHERE  marketer = '{name}'
+                                FROM hpl_malay.mkt_bill WHERE  marketer = '{name}'
                                 UNION ALL
                                 SELECT	'Phil' market,	marketer, `date` , type, year(date) year, month(date) month, 
                                     case when LEFT(type,3) = "Nạp" then value
                                         when LEFT(type,3) = "Hóa" then value *-1
                                     end thay_doi, note
-                                FROM hpl_phil.bill WHERE  marketer = '{name}'""", engine_full)            
+                                FROM hpl_phil.mkt_bill WHERE  marketer = '{name}'""", engine_full)            
         engine_full.dispose()
         return df
 
     @st.cache_data(ttl=2000)
     def get_product_names():
-        engine_full = create_engine('mysql+pymysql://trungpq:123@103.170.118.214/test'
+        engine_full = create_engine('mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
-                            pw="123",
+                            pw="1234",
                             db="test"))
-        df = pd.read_sql(f"""SELECT DISTINCT San_pham product_name, 'Malay' market from hpl.vt_mkt
+        df = pd.read_sql(f"""SELECT DISTINCT product_name, 'Malay' market from hpl_malay.products
                         UNION
-                        SELECT DISTINCT San_pham product_name, 'Phil' market from hpl_phil.vt_mkt""", engine_full)
+                        SELECT DISTINCT product_name, 'Phil' market from hpl_phil.products""", engine_full)
         engine_full.dispose()
         return df
     
     @st.cache_data(ttl=2000)
     def get_marketer_names():
-        engine_full = create_engine('mysql+pymysql://trungpq:123@103.170.118.214/test'
+        engine_full = create_engine('mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
-                            pw="123",
+                            pw="1234",
                             db="test"))
-        df = pd.read_sql(f"""SELECT DISTINCT Marketer marketer from hpl.vt_mkt
+        df = pd.read_sql(f"""SELECT DISTINCT marketer from hpl_malay.dm_mkt
                         UNION
-                        SELECT DISTINCT Marketer marketer from hpl_phil.vt_mkt""", engine_full)
+                        SELECT DISTINCT marketer from hpl_phil.dm_mkt""", engine_full)
         engine_full.dispose()
         return df
     
@@ -173,10 +174,10 @@ if authentication_status:
         )
         return selected
 
-    df = get_data_chi_phi(name, st.session_state.role)
+    df = get_data_mkt_spend(name, st.session_state.role)
     if df.shape[0] == 0:
-        df.loc[len(df.index)] = ['Malay',1945,1,'','','','',0,'','',''] 
-    df_hoa_don = get_data_hoa_don(name, st.session_state.role)
+        df.loc[len(df.index)] = ['Malay',1945,1,'','','',0] 
+    df_hoa_don = get_data_mkt_bill(name, st.session_state.role)
     df_product_names = get_product_names()
     df_marketer_names = get_marketer_names()
     selected = streamlit_menu()
@@ -221,10 +222,10 @@ if authentication_status:
     if selected == "Chi phí ADS":
         # ---- SIDEBAR ----
 
-        source = st.sidebar.multiselect(
+        channel = st.sidebar.multiselect(
             "Chọn nguồn quảng cáo:",
-            options=df["source"].unique(),
-            default=df["source"].unique()
+            options=df["channel"].unique(),
+            default=df["channel"].unique()
         )
         if st.session_state.role == "4":
             list_product_list = df["product_name"].sort_values().unique()
@@ -237,14 +238,14 @@ if authentication_status:
         )
 
         df_selection = df.query(
-            """source == @source & product_name == @product_name & month == @month & year == @year & market == @market & marketer == @marketer"""
+            """channel == @channel & product_name == @product_name & month == @month & year == @year & market == @market & marketer == @marketer"""
         )
 
         # ---- MAINPAGE ----
         st.header(f":bar_chart: Chi tiết chi phí ADS - {name}")
         st.markdown("##")
         # TOP KPI's
-        total_fee = int(df_selection["mkt_fee"].sum())
+        total_fee = int(df_selection["spend"].sum())
         average_rating = df_selection["curency_ratio"].max()
         count_product = round(df_selection["product_name"].nunique(), 2)
 
@@ -261,17 +262,17 @@ if authentication_status:
 
         st.markdown("""---""")
 
-        st.dataframe(df_selection[['market','marketer','date','source','product_name', 'mkt_fee','comment']], use_container_width=True)
+        st.dataframe(df_selection[['market','marketer','date','channel','product_name', 'spend','comment']], use_container_width=True)
 
         st.markdown("""---""")
 
         # SALES BY PRODUCT LINE [BAR CHART]
         sales_by_product_line = (
-            df_selection.groupby(by=["product_name"]).sum()[["mkt_fee"]].sort_values(by="mkt_fee")
+            df_selection.groupby(by=["product_name"]).sum()[["spend"]].sort_values(by="spend")
         )
         fig_product_sales = px.bar(
             sales_by_product_line,
-            x="mkt_fee",
+            x="spend",
             y=sales_by_product_line.index,
             orientation="h",
             title="<b>Chi phí QC theo các sản phẩm</b>",
@@ -285,11 +286,11 @@ if authentication_status:
         )
 
         # SALES BY HOUR [BAR CHART]
-        sales_by_hour = df_selection.groupby(by=["date"]).sum()[["mkt_fee"]].sort_values(by="mkt_fee")
+        sales_by_hour = df_selection.groupby(by=["date"]).sum()[["spend"]].sort_values(by="spend")
         fig_hourly_sales = px.bar(
             sales_by_hour,
             x=sales_by_hour.index,
-            y="mkt_fee",
+            y="spend",
             title="<b>Chi phí QC theo ngày</b>",
             color_discrete_sequence=["#0083B8"] * len(sales_by_hour),
             template="plotly_white",
@@ -307,11 +308,11 @@ if authentication_status:
 
 
         # SALES BY HOUR [BAR CHART]
-        sales_by_hour = df_selection.groupby(by=["marketer"]).sum()[["mkt_fee"]].sort_values(by="mkt_fee")
+        sales_by_hour = df_selection.groupby(by=["marketer"]).sum()[["spend"]].sort_values(by="spend")
         fig_marketer_mktfee = px.bar(
             sales_by_hour,
             x=sales_by_hour.index,
-            y="mkt_fee",
+            y="spend",
             title="<b>Chi phí theo Marketer</b>",
             color_discrete_sequence=["#0083B8"] * len(sales_by_hour),
             template="plotly_white",
