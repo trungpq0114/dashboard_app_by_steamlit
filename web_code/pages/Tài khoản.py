@@ -3,15 +3,29 @@ import streamlit_authenticator as stauth
 from sqlalchemy import create_engine
 import pandas as pd
 import streamlit_authenticator as stauth
+import json
+from query import *
+from urllib.parse import quote  
 
 credentials = {"usernames":{}}
 authenticator = stauth.Authenticate(credentials, "homepage", "random_key", cookie_expiry_days=10)
 name, authentication_status, username = authenticator.login("Login", "main")
 
+
+with open("/root/dashboard_app_by_steamlit/web_code/config_web/config_conn.json") as file:
+   config_conn = json.load(file)
+
+host_account = config_conn['database_web_account']['host']
+user_account = config_conn['database_web_account']['user']  
+password_account = config_conn['database_web_account']['password']
+
+connection_string_account_web = 'mysql+pymysql://%s:%s@103.170.118.214/web_data' % (user_account, quote(password_account))
+
+
 if authentication_status:
     @st.cache_data(ttl=150)
     def get_infor(username):
-        engine = create_engine(connection_string_web_account.format(user=user_account,
+        engine = create_engine(connection_string_account_web.format(user=user_account,
                                                                     pw=password_account,
                                                                     db='web_data'))
 
@@ -33,34 +47,34 @@ if authentication_status:
 
     @st.cache_data(ttl=200)
     def get_data_account():
-        engine = create_engine(f'mysql+pymysql://trungpq:123@103.170.118.214/test'
+        engine = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
-                            pw="123",
+                            pw="1234",
                             db="test"))
-        df = pd.read_sql(f""" SELECT * FROM test.account_wed """, engine)
+        df = pd.read_sql(f""" SELECT * FROM web_data.account_web """, engine)
         engine.dispose()
         return df
 
     
     @st.cache_data(ttl=2000)
     def get_marketer_names():
-        engine_full = create_engine('mysql+pymysql://trungpq:123@103.170.118.214/test'
+        engine_full = create_engine('mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
-                            pw="123",
+                            pw="1234",
                             db="test"))
-        df = pd.read_sql(f"""SELECT DISTINCT Marketer employee from hpl.vt_mkt
+        df = pd.read_sql(f"""SELECT DISTINCT `user.name` employee from hpl_malay.employee_temp
                         UNION
-                        SELECT DISTINCT Marketer employee from hpl_phil.vt_mkt""", engine_full)
+                        SELECT DISTINCT `user.name` employee from hpl_phil.employee_temp""", engine_full)
         engine_full.dispose()
         return df
     if "role" not in st.session_state:
         st.session_state.role = role
-    if st.session_state.role == '4':
+    if st.session_state.role != 'nhan_vien':
         df_account = get_data_account()
         df_emplyee = get_marketer_names()
         st.header(f"Bạn có thể đổi mật khẩu tại đây:")
         with st.form("change_pw_form", clear_on_submit=True):
-            st.selectbox("Chọn tài khoản:", df_account['usernames'].values.tolist(), key="username")
+            st.selectbox("Chọn tài khoản:", df_account['username'].values.tolist(), key="username")
             with st.expander("Nhập mật khẩu mới?"):
                 new_password = st.text_area("", placeholder="Nhập mật khẩu...")
             submitted = st.form_submit_button("Đổi mật khẩu!")
@@ -69,15 +83,15 @@ if authentication_status:
                 hashed_passwords = stauth.Hasher([new_password,]).generate()[0]
                 update_password = f""" 
                 
-                    UPDATE test.account_wed
-                    SET hashed_passwords = '{hashed_passwords}'
-                    WHERE usernames = '{username_to_change}';
+                    UPDATE web_data.account_web
+                    SET hash_password = '{hashed_passwords}'
+                    WHERE username = '{username_to_change}';
                 
                 """
                 
-                engine_full = create_engine(f'mysql+pymysql://trungpq:123@103.170.118.214/test'
+                engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
                                             .format(user="trungpq",
-                                                    pw="123",
+                                                    pw="1234",
                                                     db="test"))
                 
                 c = engine_full.raw_connection()
@@ -93,7 +107,7 @@ if authentication_status:
         st.header(f"Bạn có thể tạo thêm tài khoản mới tại đây:")
         with st.form("create_account_form", clear_on_submit=True):
             col_1, col_2 = st.columns(2)
-            market = col_1.selectbox("Chọn thị trường:", ["Malay", "Phil"], key="market")
+            market = col_1.selectbox("Chọn thị trường:", ["hpl_malay", "hpl_hil"], key="market")
             col_2.selectbox("Chọn nhân viên:", df_emplyee['employee'].values.tolist(), key="new_employee")
             col_3, col_4 = st.columns(2)
             new_username = col_3.text_area("Nhập email", placeholder="email@...")
@@ -112,15 +126,15 @@ if authentication_status:
 
                 create_query = f""" 
                 
-                    INSERT INTO test.account_wed (names, usernames, hashed_passwords, market, `role`) 
-                    VALUES('{new_employee}', '{new_username}', '{hashed_passwords}', '{database_choose}', '5');
+                    INSERT INTO web_data.account_web (name, username, hash_password, pos) 
+                    VALUES('{new_employee}', '{new_username}', '{hashed_passwords}', '{database_choose}');
 
                 
                 """
                 
-                engine_full = create_engine(f'mysql+pymysql://trungpq:123@103.170.118.214/test'
+                engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
                                             .format(user="trungpq",
-                                                    pw="123",
+                                                    pw="1234",
                                                     db="test"))
                 
                 c = engine_full.raw_connection()

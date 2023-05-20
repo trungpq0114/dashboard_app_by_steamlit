@@ -88,15 +88,15 @@ if authentication_status:
                     .format(user="trungpq",
                             pw="123",
                             db="test"))
-        if role == 'nhan_vien':
+        if role == 'admin':
             df = pd.read_sql(f"""SELECT id, marketer, 'Malay' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_malay.mkt_spent m where spend > 0
                             UNION
                             SELECT id, marketer, 'Phil' market,year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_phil.mkt_spent m where spend > 0
                             ORDER BY date DESC""", engine_full)
         else:
-            df = pd.read_sql(f"""SELECT 'Malay' market, year(date) year, month(date) month, channel, product_name, spend FROM hpl_malay.mkt m where marketer = '{name}' and spend > 0
+            df = pd.read_sql(f"""SELECT id, marketer, 'Malay' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_malay.mkt_spent m where marketer = '{name}' and spend > 0
                             UNION
-                            SELECT 'Phil' market,year(date) year, month(date) month, channel, product_name, spend FROM hpl_phil.mkt m where marketer = '{name}' and spend > 0
+                            SELECT id, marketer, 'Phil' market,year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_phil.mkt_spent m where marketer = '{name}' and spend > 0
                             ORDER BY date DESC""", engine_full) 
         engine_full.dispose()
         return df
