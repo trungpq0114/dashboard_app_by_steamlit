@@ -180,12 +180,9 @@ if authentication_status:
     df_product_names = get_product_names()
     df_marketer_names = get_marketer_names()
     selected = streamlit_menu()
-    if username == 'tester01':
-        st.dataframe(df)
-        st.header(df.shape[0])
     authenticator.logout("Logout", "sidebar")
     st.sidebar.title(f"Xin chào {name}")
-    st.sidebar.title(f"Username: {username}")
+    st.sidebar.header(f"Username: {username}")
     st.sidebar.header("Bộ lọc tại đây:")
 
     market = st.sidebar.multiselect(
@@ -273,8 +270,10 @@ if authentication_status:
                             db="test"))
         with st.form("edit_mkt_spend", clear_on_submit=True):
             with st.expander("Nhập chi phí Marketing?"):
-                st.text(""" Mỗi dòng hãy chọn một id bất kì""")
+                st.text(""" *Lưu ý: Mỗi lần sửa, hãy chọn một STT bất kì cho mỗi dòng""")
+                
                 df_to_edit = df_selection[['month','day','channel','product_name', 'spend','note']]
+                df_to_edit.index.name='STT'
                 edited_df = st.experimental_data_editor(df_to_edit, hide_index = False,use_container_width=True, num_rows='dynamic')
             edited_df['marketer'] = name
             edited_df['year'] = 2023

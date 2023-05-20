@@ -25,8 +25,7 @@ connection_string_account_web = 'mysql+pymysql://%s:%s@103.170.118.214/web_data'
 if authentication_status:
     authenticator.logout("Logout", "sidebar")
     st.sidebar.title(f"Xin chào {name}")
-    st.sidebar.title(f"Username: {username}")
-    st.sidebar.header("Bộ lọc tại đây:")
+    st.sidebar.header(f"Username: {username}")
     @st.cache_data(ttl=150)
     def get_infor(username):
         engine = create_engine(connection_string_account_web.format(user=user_account,
