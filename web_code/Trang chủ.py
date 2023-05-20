@@ -264,6 +264,17 @@ if authentication_status:
 
         st.dataframe(df_selection[['market','marketer','date','channel','product_name', 'spend','note']], use_container_width=True)
 
+        edited_df = st.experimental_data_editor(df_selection[['marketer','date','channel','product_name', 'spend','note']], use_container_width=True)
+        
+        engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
+                    .format(user="trungpq",
+                            pw="123",
+                            db="test"))
+        
+        with st.expander("Cập nhật chi phí Marketing?"):
+            edited_df.to_sql('mkt_spend_temp', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = 'hpl_malay', index=False)
+
+        engine_full.dispose()
         st.markdown("""---""")
 
         # SALES BY PRODUCT LINE [BAR CHART]
