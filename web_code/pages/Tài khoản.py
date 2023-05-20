@@ -74,12 +74,12 @@ if authentication_status:
         df_emplyee = get_marketer_names()
         st.header(f"Bạn có thể đổi mật khẩu tại đây:")
         with st.form("change_pw_form", clear_on_submit=True):
-            st.selectbox("Chọn tài khoản:", df_account['username'].values.tolist(), key="username")
+            st.selectbox("Chọn tài khoản:", df_account['username'].values.tolist(), key="username_to_change")
             with st.expander("Nhập mật khẩu mới?"):
                 new_password = st.text_area("", placeholder="Nhập mật khẩu...")
             submitted = st.form_submit_button("Đổi mật khẩu!")
             if submitted:
-                username_to_change = st.session_state["username"]
+                username_to_change = st.session_state["username_to_change"]
                 hashed_passwords = stauth.Hasher([new_password,]).generate()[0]
                 update_password = f""" 
                 

@@ -27,11 +27,11 @@ connection_string_web_account = 'mysql+pymysql://%s:%s@103.170.118.214/web_data'
 engine = create_engine(connection_string_web_account.format(user=user_account,
                                pw=password_account,
                                db='web_data'))
-account_df = pd.read_sql('SELECT * FROM web_data.account_wed', engine)
+account_df = pd.read_sql('SELECT * FROM web_data.account_web', engine)
 engine.dispose()
-names = account_df['names'].values.tolist()
-usernames = account_df['usernames'].values.tolist()
-hashed_passwords = account_df['hashed_passwords'].values.tolist()
+names = account_df['name'].values.tolist()
+usernames = account_df['username'].values.tolist()
+hashed_passwords = account_df['hash_password'].values.tolist()
 
 credentials = {"usernames":{}}
         
@@ -57,7 +57,7 @@ months = list(range(1,13))
 days = list(range(1,32))
 
 if authentication_status:
-    @st.cache_data(ttl=15)
+    # @st.cache_data(ttl=15)    
     def get_infor(username):
         engine = create_engine(connection_string_web_account.format(user=user_account,
                                                                     pw=password_account,
@@ -81,7 +81,7 @@ if authentication_status:
     if "role" not in st.session_state:
         st.session_state.role = role
     
-    @st.cache_data(ttl=15)
+    # @st.cache_data(ttl=15)
     def get_data_mkt_spend(name, role):
 
         engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
@@ -89,64 +89,56 @@ if authentication_status:
                             pw="123",
                             db="test"))
         if role == 'admin':
-            df = pd.read_sql(f"""SELECT id, marketer, 'Malay' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_malay.mkt_spent m where spend > 0
+            df = pd.read_sql(f"""SELECT id, marketer, 'hpl_malay' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_malay.mkt_spent m where spend > 0
                             UNION
-                            SELECT id, marketer, 'Phil' market,year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_phil.mkt_spent m where spend > 0
+                            SELECT id, marketer, 'hpl_phil' market,year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_phil.mkt_spent m where spend > 0
                             ORDER BY date DESC""", engine_full)
         else:
-            df = pd.read_sql(f"""SELECT id, marketer, 'Malay' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_malay.mkt_spent m where marketer = '{name}' and spend > 0
-                            UNION
-                            SELECT id, marketer, 'Phil' market,year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_phil.mkt_spent m where marketer = '{name}' and spend > 0
-                            ORDER BY date DESC""", engine_full) 
+            df = pd.read_sql(f"""SELECT id, marketer, '{pos}' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM {pos}.mkt_spent m where marketer = '{name}' and spend > 0
+                                ORDER BY date DESC""", engine_full) 
         engine_full.dispose()
         return df
     
-    @st.cache_data(ttl=15)
+    # @st.cache_data(ttl=15)
     def get_data_mkt_bill(name, role):
         engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
                             pw="1234",
                             db="test"))
-        if role == 'nhan_vien':
-            df = pd.read_sql(f"""SELECT	'Malay' market,	marketer, `date` , type, year(date) year, month(date) month, 
+        if role == 'admin':
+            df = pd.read_sql(f"""SELECT	'hpl_malay' market,	marketer, `date` , type, year(date) year, month(date) month, 
                                     case when LEFT(type,3) = "Nạp" then value
                                         when LEFT(type,3) = "Hóa" then value *-1
                                     end thay_doi, note
                                 FROM hpl_malay.mkt_bill
                                 UNION ALL
-                                SELECT	'Phil' market,	marketer, `date` , type, year(date) year, month(date) month, 
+                                SELECT	'hpl_phil' market,	marketer, `date` , type, year(date) year, month(date) month, 
                                     case when LEFT(type,3) = "Nạp" then value
                                         when LEFT(type,3) = "Hóa" then value *-1
                                     end thay_doi, note
                                 FROM hpl_phil.mkt_bill""", engine_full)
         else:
-            df = pd.read_sql(f"""SELECT	'Malay' market,	marketer, `date` , type, year(date) year, month(date) month, 
+            df = pd.read_sql(f"""SELECT	'{pos}' market,	marketer, `date` , type, year(date) year, month(date) month, 
                                     case when LEFT(type,3) = "Nạp" then value
                                         when LEFT(type,3) = "Hóa" then value *-1
                                     end thay_doi, note
-                                FROM hpl_malay.mkt_bill WHERE  marketer = '{name}'
-                                UNION ALL
-                                SELECT	'Phil' market,	marketer, `date` , type, year(date) year, month(date) month, 
-                                    case when LEFT(type,3) = "Nạp" then value
-                                        when LEFT(type,3) = "Hóa" then value *-1
-                                    end thay_doi, note
-                                FROM hpl_phil.mkt_bill WHERE  marketer = '{name}'""", engine_full)            
+                                FROM {pos}.mkt_bill WHERE  marketer = '{name}' """, engine_full)            
         engine_full.dispose()
         return df
 
-    @st.cache_data(ttl=2000)
+    # @st.cache_data(ttl=15)
     def get_product_names():
         engine_full = create_engine('mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
                             pw="1234",
                             db="test"))
-        df = pd.read_sql(f"""SELECT DISTINCT product_name, 'Malay' market from hpl_malay.products
+        df = pd.read_sql(f"""SELECT DISTINCT product_name, 'hpl_malay' market from hpl_malay.products
                         UNION
-                        SELECT DISTINCT product_name, 'Phil' market from hpl_phil.products""", engine_full)
+                        SELECT DISTINCT product_name, 'hpl_phil' market from hpl_phil.products""", engine_full)
         engine_full.dispose()
         return df
     
-    @st.cache_data(ttl=2000)
+    # @st.cache_data(ttl=15)
     def get_marketer_names():
         engine_full = create_engine('mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
@@ -182,7 +174,7 @@ if authentication_status:
 
     df = get_data_mkt_spend(name, st.session_state.role)
     if df.shape[0] == 0:
-        df.loc[len(df.index)] = ['', name, 'Malay', 1945 ,1 , 1, '', '', '', 0, 'Sản phẩm A: abcshop.com'] 
+        df.loc[len(df.index)] = ['', name, 'hpl_malay', 1945 ,1 , 1, '', '', '', 0, 'Sản phẩm A: abcshop.com'] 
     df_hoa_don = get_data_mkt_bill(name, st.session_state.role)
     df_product_names = get_product_names()
     df_marketer_names = get_marketer_names()
@@ -196,7 +188,7 @@ if authentication_status:
 
     market = st.sidebar.multiselect(
         "Chọn thị trường:",
-        options=["Malay", "Phil"],
+        options=["hpl_malay", "hpl_phil"],
         default=df["market"].unique()
     )
 
@@ -211,8 +203,11 @@ if authentication_status:
         options=months,
         default=df.loc[df['year'] == df["year"].max()]["month"].max()
     )
- 
-    list_mkt = df_marketer_names["marketer"].sort_values().values.tolist()
+    
+    if role == "admin":
+        list_mkt = df_marketer_names["marketer"].sort_values().values.tolist()
+    else:
+        list_mkt = [] 
     list_mkt.append(name)
 
     container = st.sidebar.container()
@@ -233,7 +228,7 @@ if authentication_status:
             options=df["channel"].unique(),
             default=df["channel"].unique()
         )
-        if st.session_state.role == "4":
+        if st.session_state.role == "admin":
             list_product_list = df["product_name"].sort_values().unique()
         else:
             list_product_list = df.loc[df['marketer'] == name]["product_name"].sort_values().unique()
