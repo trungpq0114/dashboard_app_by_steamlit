@@ -7,6 +7,17 @@ import json
 from query import *
 from urllib.parse import quote  
 
+def run_sql(list_query, engine):
+    c = engine.raw_connection()
+    cursor = c.cursor()
+    for i in list_query:
+        try:
+            result = cursor.execute(i)
+        except:
+            print("Error")
+    c.commit()
+    c.close()
+
 credentials = {"usernames":{}}
 authenticator = stauth.Authenticate(credentials, "homepage", "random_key", cookie_expiry_days=10)
 name, authentication_status, username = authenticator.login("Login", "main")
@@ -26,6 +37,10 @@ if authentication_status:
     authenticator.logout("Logout", "sidebar")
     st.sidebar.title(f"Xin chào {name}")
     st.sidebar.header(f"Username: {username}")
+    engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
+                            .format(user="trungpq",
+                                    pw="1234",
+                                    db="test"))
     @st.cache_data(ttl=150)
     def get_infor(username):
         engine = create_engine(connection_string_account_web.format(user=user_account,
@@ -48,7 +63,7 @@ if authentication_status:
 
     role, pos = get_infor(username)
 
-    @st.cache_data(ttl=200)
+    @st.cache_data(ttl=20)
     def get_data_account():
         engine = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
@@ -59,7 +74,7 @@ if authentication_status:
         return df
 
     
-    @st.cache_data(ttl=2000)
+    @st.cache_data(ttl=20)
     def get_marketer_names():
         engine_full = create_engine('mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
@@ -92,21 +107,35 @@ if authentication_status:
                 
                 """
                 
-                engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
-                                            .format(user="trungpq",
-                                                    pw="1234",
-                                                    db="test"))
-                
-                c = engine_full.raw_connection()
-                cursor = c.cursor()
-                result = cursor.execute(update_password)
-                c.commit()
-                c.close()
-                engine_full.dispose()
+                run_sql([update_password,], engine_full)
                 st.success("Đã cập nhật dữ liệu!")
 
         "---"
+        st.header(f"Bạn có thể cập nhật team, leader và link sheet mkt tại đây:")
+        with st.form("change_team_form", clear_on_submit=True):
+            st.selectbox("Chọn tài khoản:", df_account['username'].values.tolist(), key="username_team_to_change")
+            with st.expander("Nhập thêm thông tin tại đây?"):
+                st.text("Nhập tên team")
+                new_team = st.text_area("", placeholder="Tên team là ...")
+                st.text("Nhập link sheet của mkt nếu mkt nhập trên google sheet")
+                linksheet_mkt = st.text_area("", placeholder="Link sheet nhập mkt là ...")
+                st.selectbox("Là leader của team:", df_account['team'].sort_values().unique(), key="new_leader")
+            submitted = st.form_submit_button("Cập nhật leader!")
+            if submitted:
+                username_team_to_change = st.session_state["username_team_to_change"]
+                new_leader = st.session_state["new_leader"]
+                update_password = f""" 
+                
+                    UPDATE web_data.account_web
+                    SET team = '{new_team}', leader = '{new_leader}', linksheet_mkt = '{linksheet_mkt}'
+                    WHERE username = '{username_team_to_change}';
+                
+                """
+                
+                run_sql([update_password,], engine_full)
+                st.success("Đã cập nhật dữ liệu!")
 
+        "---"
         st.header(f"Bạn có thể tạo thêm tài khoản mới tại đây:")
         with st.form("create_account_form", clear_on_submit=True):
             col_1, col_2 = st.columns(2)
@@ -135,17 +164,7 @@ if authentication_status:
                 
                 """
                 
-                engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
-                                            .format(user="trungpq",
-                                                    pw="1234",
-                                                    db="test"))
-                
-                c = engine_full.raw_connection()
-                cursor = c.cursor()
-                result = cursor.execute(create_query)
-                c.commit()
-                c.close()
-                engine_full.dispose()
+                run_sql([create_query,], engine_full)
                 st.success("Đã tạo tài khoản thành công!")
 
         st.header(f"Danh sách tài khoản:")

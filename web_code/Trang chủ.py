@@ -58,6 +58,17 @@ months = list(range(1,13))
 days = list(range(1,32))
 
 if authentication_status:
+    # Chạy list query:
+    def run_sql(list_query, engine):
+        c = engine.raw_connection()
+        cursor = c.cursor()
+        for i in list_query:
+            try:
+                result = cursor.execute(i)
+            except:
+                print("Error")
+        c.commit()
+        c.close()
     @st.cache_data(ttl=1500)    
     def get_infor(username):
         engine = create_engine(connection_string_web_account.format(user=user_account,
@@ -274,12 +285,7 @@ if authentication_status:
             if submitted:
                 st.session_state['edited_df'].to_sql(f'mkt_spend_temp_{str((hash(name) % 10**8))}', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = pos, index=False)
                 engine_full.dispose()
-                c = engine_full.raw_connection()
-                cursor = c.cursor()
-                result = cursor.execute(query_upsert_mkt_spend(pos, str((hash(name) % 10**8))))
-                c.commit()
-                c.close()
-                engine_full.dispose()
+                run_sql([query_upsert_mkt_spend(pos, str((hash(name) % 10**8))), ], engine_full)
                 st.success("Đã cập nhật, hãy kiểm tra lại dữ liệu!")
         st.markdown("""---""")
 
@@ -413,13 +419,7 @@ if authentication_status:
             submitted = st.form_submit_button("Cập nhật chi phí MKT!")
             if submitted:
                 st.session_state['edited_df_bill'].to_sql(f'mkt_bill_temp_{str((hash(name) % 10**8))}', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = pos, index=False)
-                engine_full.dispose()
-                c = engine_full.raw_connection()
-                cursor = c.cursor()
-                result = cursor.execute(query_upsert_mkt_bill(pos, str((hash(name) % 10**8))))
-                c.commit()
-                c.close()
-                engine_full.dispose()
+                run_sql([query_upsert_mkt_bill(pos, str((hash(name) % 10**8))), ], engine_full)
                 st.success("Đã cập nhật, hãy kiểm tra lại dữ liệu!")
         # SALES BY PRODUCT LINE [BAR CHART]
         sales_by_product_line = df_selection_hoa_don.groupby(by=["date"]).sum()[["nap"]].sort_values(by="date")
