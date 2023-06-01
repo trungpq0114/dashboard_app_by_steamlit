@@ -13,11 +13,12 @@ def run_sql(list_query, engine):
     for i in list_query:
         try:
             result = cursor.execute(i)
+            print = "Đã chạy thành công"
         except:
-            print("Error")
+            print = "Chưa chạy được dữ liệu, mời kiểm tra lại"
     c.commit()
     c.close()
-
+    return print
 credentials = {"usernames":{}}
 authenticator = stauth.Authenticate(credentials, "homepage", "random_key", cookie_expiry_days=10)
 name, authentication_status, username = authenticator.login("Login", "main")
@@ -114,26 +115,42 @@ if authentication_status:
         st.header(f"Bạn có thể cập nhật team, leader và link sheet mkt tại đây:")
         with st.form("change_team_form", clear_on_submit=True):
             st.selectbox("Chọn tài khoản:", df_account['username'].values.tolist(), key="username_team_to_change")
+            update_col_1, update_col_2, update_col_3 = st.columns(3)
+            update_col_1.selectbox("Chọn thị trường:", df_account['pos'].unique(), key="new_pos")
+            update_col_2.selectbox("Chọn nhân viên:", df_emplyee['employee'].values.tolist(), key="new_name")
+            update_col_3.selectbox("Chọn nhân viên:", ['Đang hoạt động','Đã nghỉ việc'], key="status")
             with st.expander("Nhập thêm thông tin tại đây?"):
                 st.text("Nhập tên team")
                 new_team = st.text_area("", placeholder="Tên team là ...")
                 st.text("Nhập link sheet của mkt nếu mkt nhập trên google sheet")
                 linksheet_mkt = st.text_area("", placeholder="Link sheet nhập mkt là ...")
-                st.selectbox("Là leader của team:", df_account['team'].sort_values().unique(), key="new_leader")
-            submitted = st.form_submit_button("Cập nhật leader!")
+                team_list = list(set(df_account['team'].values.tolist()))
+                team_list.insert(0,"")
+                st.selectbox("Là leader của team:",team_list , key="new_leader")
+                st.text("Đổi username (mail) nếu muốn")
+                new_username_change = st.text_area("", placeholder="Nhập mail mới ...")
+            submitted = st.form_submit_button("Cập nhật thông tin tài khoản!")
             if submitted:
                 username_team_to_change = st.session_state["username_team_to_change"]
+                new_pos = st.session_state["new_pos"]
+                new_name = st.session_state["new_name"]
+                status = 0 if st.session_state["status"] == 'Đã nghỉ việc' else 1
                 new_leader = st.session_state["new_leader"]
-                update_password = f""" 
-                
+
+                update_team = f""" 
                     UPDATE web_data.account_web
-                    SET team = '{new_team}', leader = '{new_leader}', linksheet_mkt = '{linksheet_mkt}'
+                    SET status ={status}
+                            {f", team = '{new_team}'" if new_team != "" else ""}
+                            {f", leader = '{new_leader}'" if new_leader != "" else ""}
+                            {f", linksheet = '{linksheet_mkt}'" if linksheet_mkt != "" else ""}
+                            {f", pos = '{new_pos}'" if new_pos != "" else ""}
+                            {f", name = '{new_name}'" if new_name != "" else ""}
+                            {f", username = '{new_username_change}'" if new_username_change != "" else ""}
                     WHERE username = '{username_team_to_change}';
-                
                 """
-                
-                run_sql([update_password,], engine_full)
-                st.success("Đã cập nhật dữ liệu!")
+                # st.text(update_team)
+                print = run_sql([update_team,], engine_full)
+                st.success(print)
 
         "---"
         st.header(f"Bạn có thể tạo thêm tài khoản mới tại đây:")

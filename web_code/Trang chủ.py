@@ -28,7 +28,7 @@ connection_string_web_account = 'mysql+pymysql://%s:%s@103.170.118.214/web_data'
 engine = create_engine(connection_string_web_account.format(user=user_account,
                                pw=password_account,
                                db='web_data'))
-account_df = pd.read_sql('SELECT * FROM web_data.account_web', engine)
+account_df = pd.read_sql('SELECT * FROM web_data.account_web where status is null or status = 1', engine)
 engine.dispose()
 names = account_df['name'].values.tolist()
 usernames = account_df['username'].values.tolist()
@@ -69,7 +69,7 @@ if authentication_status:
                 print("Error")
         c.commit()
         c.close()
-    @st.cache_data(ttl=1500)    
+    # @st.cache_data(ttl=1500)    
     def get_infor(username):
         engine = create_engine(connection_string_web_account.format(user=user_account,
                                                                     pw=password_account,
@@ -233,6 +233,7 @@ if authentication_status:
             list_product_list = df["product_name"].sort_values().unique()
         else:
             list_product_list = df.loc[df['marketer'] == name]["product_name"].sort_values().unique()
+
         product_name = st.sidebar.multiselect(
             "Chọn sản phẩm đã chạy:",
             options=list_product_list,
@@ -276,87 +277,21 @@ if authentication_status:
                 
                 df_to_edit = df_selection[['month','day','channel','product_name', 'spend','note']]
                 df_to_edit.index.name='STT'
-                edited_df = st.experimental_data_editor(df_to_edit, hide_index = False,use_container_width=True, num_rows='dynamic')
+                edited_df = st.experimental_data_editor(df_to_edit, hide_index = False,use_container_width=True, num_rows='dynamic', key = "Check")
             edited_df['marketer'] = name
             edited_df['year'] = 2023
             edited_df = edited_df.replace(r'^\s*$', np.nan , regex=True)
             st.session_state['edited_df'] = edited_df
             submitted = st.form_submit_button("Cập nhật chi phí MKT!")
             if submitted:
-                st.session_state['edited_df'].to_sql(f'mkt_spend_temp_{str((hash(name) % 10**8))}', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = pos, index=False)
-                engine_full.dispose()
-                run_sql([query_upsert_mkt_spend(pos, str((hash(name) % 10**8))), ], engine_full)
-                st.success("Đã cập nhật, hãy kiểm tra lại dữ liệu!")
+                if st.session_state["Check"] != {'edited_cells': {}, 'added_rows': [], 'deleted_rows': []}:
+                    st.session_state['edited_df'].to_sql(f'mkt_spend_temp_{str((hash(name) % 10**8))}', con = engine_full, if_exists = 'replace', chunksize = 1000, schema = pos, index=False)
+                    engine_full.dispose()
+                    run_sql([query_upsert_mkt_spend(pos, str((hash(name) % 10**8))), ], engine_full)
+                    st.success("Đã cập nhật, hãy kiểm tra lại dữ liệu!")
         st.markdown("""---""")
 
-        # SALES BY PRODUCT LINE [BAR CHART]
-        sales_by_product_line = (
-            df_selection.groupby(by=["product_name"]).sum()[["spend"]].sort_values(by="spend")
-        )
-        fig_product_sales = px.bar(
-            sales_by_product_line,
-            x="spend",
-            y=sales_by_product_line.index,
-            orientation="h",
-            title="<b>Chi phí QC theo các sản phẩm</b>",
-            color_discrete_sequence=["#0083B8"] * len(sales_by_product_line),
-            template="plotly_white",
-            text_auto=True
-        )
-        fig_product_sales.update_layout(
-            plot_bgcolor="rgba(0,0,0,0)",
-            xaxis=(dict(showgrid=False))
-        )
 
-        # SALES BY HOUR [BAR CHART]
-        sales_by_hour = df_selection.groupby(by=["date"]).sum()[["spend"]].sort_values(by="spend")
-        fig_hourly_sales = px.bar(
-            sales_by_hour,
-            x=sales_by_hour.index,
-            y="spend",
-            title="<b>Chi phí QC theo ngày</b>",
-            color_discrete_sequence=["#0083B8"] * len(sales_by_hour),
-            template="plotly_white",
-        )
-        fig_hourly_sales.update_layout(
-            xaxis=dict(tickmode="linear"),
-            plot_bgcolor="rgba(0,0,0,0)",
-            yaxis=(dict(showgrid=False)),
-        )
-
-
-        left_column, right_column = st.columns(2)
-        left_column.plotly_chart(fig_hourly_sales, use_container_width=True)
-        right_column.plotly_chart(fig_product_sales, use_container_width=True)
-
-
-        # SALES BY HOUR [BAR CHART]
-        sales_by_hour = df_selection.groupby(by=["marketer"]).sum()[["spend"]].sort_values(by="spend")
-        fig_marketer_mktfee = px.bar(
-            sales_by_hour,
-            x=sales_by_hour.index,
-            y="spend",
-            title="<b>Chi phí theo Marketer</b>",
-            color_discrete_sequence=["#0083B8"] * len(sales_by_hour),
-            template="plotly_white",
-            text_auto=True
-        )
-        fig_marketer_mktfee.update_layout(
-            xaxis=dict(tickmode="linear"),
-            plot_bgcolor="rgba(0,0,0,0)",
-            yaxis=(dict(showgrid=False)),
-        )
-
-        st.plotly_chart(fig_marketer_mktfee, use_container_width=True)
-        # ---- HIDE STREAMLIT STYLE ----
-        hide_st_style = """
-                    <style>
-                    #MainMenu {visibility: hidden;}
-                    footer {visibility: hidden;}
-                    header {visibility: hidden;}
-                    </style>
-                    """
-        st.markdown(hide_st_style, unsafe_allow_html=True)
     if selected == "Lịch sử hóa đơn":
         type = st.sidebar.multiselect(
             "Chọn thẻ:",
@@ -438,13 +373,13 @@ if authentication_status:
         )
 
         # SALES BY HOUR [BAR CHART]
-        sales_by_hour = df_selection_hoa_don.groupby(by=["date"]).sum()[["thanh_toan"]].sort_values(by="date")
+        sales_by_date = df_selection_hoa_don.groupby(by=["date"]).sum()[["thanh_toan"]].sort_values(by="date")
         fig_hourly_sales = px.bar(
-            sales_by_hour,
-            x=sales_by_hour.index,
+            sales_by_date,
+            x=sales_by_date.index,
             y="thanh_toan",
             title="<b>Tổng hợp thanh toán</b>",
-            color_discrete_sequence=["#0083B8"] * len(sales_by_hour),
+            color_discrete_sequence=["#0083B8"] * len(sales_by_date),
             template="plotly_white",
         )
         fig_hourly_sales.update_layout(
@@ -458,8 +393,3 @@ if authentication_status:
         left_column.plotly_chart(fig_hourly_sales, use_container_width=True)
         right_column.plotly_chart(fig_product_sales, use_container_width=True)
 
-
-
-    if selected == "Check campain":
-        st.header(f"You have selected {selected}")
-    
