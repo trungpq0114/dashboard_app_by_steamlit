@@ -81,9 +81,7 @@ if authentication_status:
                     .format(user="trungpq",
                             pw="1234",
                             db="test"))
-        df = pd.read_sql(f"""SELECT DISTINCT `user.name` employee from hpl_malay.employee_temp
-                        UNION
-                        SELECT DISTINCT `user.name` employee from hpl_phil.employee_temp""", engine_full)
+        df = pd.read_sql(all_employee(), engine_full)
         engine_full.dispose()
         return df
     if "role" not in st.session_state:
@@ -116,7 +114,7 @@ if authentication_status:
         with st.form("change_team_form", clear_on_submit=True):
             st.selectbox("Chọn tài khoản:", df_account['username'].values.tolist(), key="username_team_to_change")
             update_col_1, update_col_2, update_col_3 = st.columns(3)
-            update_col_1.selectbox("Chọn thị trường:", df_account['pos'].unique(), key="new_pos")
+            update_col_1.selectbox("Chọn thị trường:", all_market(), key="new_pos")
             update_col_2.selectbox("Chọn nhân viên:", df_emplyee['employee'].values.tolist(), key="new_name")
             update_col_3.selectbox("Chọn nhân viên:", ['Đang hoạt động','Đã nghỉ việc'], key="status")
             with st.expander("Nhập thêm thông tin tại đây?"):
@@ -156,7 +154,7 @@ if authentication_status:
         st.header(f"Bạn có thể tạo thêm tài khoản mới tại đây:")
         with st.form("create_account_form", clear_on_submit=True):
             col_1, col_2 = st.columns(2)
-            market = col_1.selectbox("Chọn thị trường:", ["hpl_malay", "hpl_hil"], key="market")
+            market = col_1.selectbox("Chọn thị trường:", all_market(), key="market")
             col_2.selectbox("Chọn nhân viên:", df_emplyee['employee'].values.tolist(), key="new_employee")
             col_3, col_4 = st.columns(2)
             new_username = col_3.text_area("Nhập email", placeholder="email@...")
@@ -167,11 +165,7 @@ if authentication_status:
             if submitted:
                 new_employee = st.session_state["new_employee"]
                 hashed_passwords = stauth.Hasher([new_password,]).generate()[0]
-
-                if st.session_state["market"] == "Malay":
-                    database_choose = 'hpl'
-                else:
-                    database_choose = 'hpl_phil'
+                database_choose = st.session_state["market"]
 
                 create_query = f""" 
                 

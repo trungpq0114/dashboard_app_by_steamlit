@@ -1,5 +1,3 @@
-
-
 def query_get_role(username):
     return f"SELECT role FROM web_data.account_web where username = '{username}'"
 def query_get_pos(username):
@@ -34,3 +32,13 @@ def query_upsert_mkt_bill(database, name):
                 , thanh_toan = temp.thanh_toan 
                 , note = temp.note; 
             """
+def all_market():
+    all_market = ["hpl_malay","hpl_malay_2","hpl_phil"]
+    return all_market
+
+def all_employee():
+    query = ""
+    for market in all_market():
+        query = query + f""" UNION
+                            SELECT DISTINCT `user.name` employee from {market}.employee_temp"""
+    return query[6:]
