@@ -101,10 +101,7 @@ if authentication_status:
                             pw="1234",
                             db="test"))
         if role == 'admin':
-            df = pd.read_sql(f"""SELECT marketer, 'hpl_malay' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_malay.mkt_spent m where spend > 0
-                            UNION
-                            SELECT marketer, 'hpl_phil' market,year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM hpl_phil.mkt_spent m where spend > 0
-                            ORDER BY date DESC""", engine_full)
+            df = pd.read_sql(all_spend(), engine_full)
         else:
             df = pd.read_sql(f"""SELECT marketer, '{pos}' market, year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM {pos}.mkt_spent m where marketer = '{name}' and spend > 0
                                 ORDER BY date DESC""", engine_full) 
@@ -118,38 +115,30 @@ if authentication_status:
                             pw="1234",
                             db="test"))
         if role == 'admin':
-            df = pd.read_sql(f"""SELECT	'hpl_malay' market,	marketer, `date` , type, year(date) year, month(date) month, day(date) day, nap, thanh_toan, note
-                                FROM hpl_malay.mkt_bill where nap <> 0 or thanh_toan <> 0
-                                UNION ALL
-                                SELECT	'hpl_phil' market,	marketer, `date` , type, year(date) year, month(date) month, day(date) day, nap, thanh_toan, note
-                                FROM hpl_phil.mkt_bill where nap > 0 or thanh_toan > 0""", engine_full)
+            df = pd.read_sql(all_bill(), engine_full)
         else:
             df = pd.read_sql(f"""SELECT	'{pos}' market,	marketer, `date` , type, year(date) year, month(date) month, day(date) day, nap, thanh_toan, note
                                 FROM {pos}.mkt_bill WHERE  marketer = '{name}' and (nap <> 0 or thanh_toan <> 0) """, engine_full)            
         engine_full.dispose()
         return df
 
-    @st.cache_data(ttl=500)
+    # @st.cache_data(ttl=500)
     def get_product_names():
         engine_full = create_engine('mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
                             pw="1234",
                             db="test"))
-        df = pd.read_sql(f"""SELECT DISTINCT product_name, 'hpl_malay' market from hpl_malay.products
-                        UNION
-                        SELECT DISTINCT product_name, 'hpl_phil' market from hpl_phil.products""", engine_full)
+        df = pd.read_sql(all_product_name_mkt(), engine_full)
         engine_full.dispose()
         return df
     
-    @st.cache_data(ttl=500)
+    # @st.cache_data(ttl=500)
     def get_marketer_names():
         engine_full = create_engine('mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
                             pw="1234",
                             db="test"))
-        df = pd.read_sql(f"""SELECT DISTINCT marketer from hpl_malay.dm_mkt
-                        UNION
-                        SELECT DISTINCT marketer from hpl_phil.dm_mkt""", engine_full)
+        df = pd.read_sql(all_employee(), engine_full)
         engine_full.dispose()
         return df
     
@@ -189,7 +178,7 @@ if authentication_status:
 
     market = st.sidebar.multiselect(
         "Chọn thị trường:",
-        options=["hpl_malay", "hpl_phil"],
+        options=all_market(),
         default=df["market"].unique()
     )
 
@@ -206,7 +195,7 @@ if authentication_status:
     )
     
     if role == "admin":
-        list_mkt = df_marketer_names["marketer"].sort_values().values.tolist()
+        list_mkt = df_marketer_names["employee"].sort_values().values.tolist()
     else:
         list_mkt = [] 
     list_mkt.append(name)
@@ -230,10 +219,9 @@ if authentication_status:
             default=df["channel"].unique()
         )
         if st.session_state['role'] == "admin":
-            list_product_list = df["product_name"].sort_values().unique()
+            list_product_list = df_product_names["product_name"].sort_values().unique()
         else:
-            list_product_list = df.loc[df['marketer'] == name]["product_name"].sort_values().unique()
-
+            list_product_list = df_product_names.loc[df_product_names['marketer'] == name]["product_name"].sort_values().unique()
         product_name = st.sidebar.multiselect(
             "Chọn sản phẩm đã chạy:",
             options=list_product_list,
@@ -266,7 +254,6 @@ if authentication_status:
         st.markdown("""---""")
         st.dataframe(df_selection[['market','marketer','year','month','day','channel','product_name','spend','note']], use_container_width=True, hide_index = True)
 
-        
         engine_full = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
                             pw="1234",
@@ -277,7 +264,40 @@ if authentication_status:
                 
                 df_to_edit = df_selection[['month','day','channel','product_name', 'spend','note']]
                 df_to_edit.index.name='STT'
-                edited_df = st.experimental_data_editor(df_to_edit, hide_index = False,use_container_width=True, num_rows='dynamic', key = "Check")
+                edited_df = st.data_editor(df_to_edit
+                    , column_config={
+                            "day": st.column_config.NumberColumn(
+                                "Ngày",
+                                help="Ngày chạy quảng cáo",
+                                min_value=1,
+                                max_value=31
+                            ),
+                            "month": st.column_config.NumberColumn(
+                                "Tháng",
+                                help="Tháng chạy quảng cáo",
+                                min_value=1,
+                                max_value=12
+                            ),
+                            "channel": st.column_config.SelectboxColumn(
+                                "Kênh quảng cáo",
+                                help="Chọn kênh quảng cáo",
+                                width="medium",
+                                options=['Facebook', 'Tiktok'],
+                            ),
+                            "spend": st.column_config.NumberColumn(
+                                "Chi phí",
+                                help="Nếu xoá hãy sửa chi phí về 0?",
+                                min_value=0,
+                                max_value=100000000
+                            ),
+                            "product_name": st.column_config.SelectboxColumn(
+                                "Tên sản phẩm",
+                                help="Lựa chọn tên sản phẩm",
+                                width="medium",
+                                options=list_product_list,
+                            )
+                            }
+                    , hide_index = False,use_container_width=True, num_rows='dynamic', key = "Check")
             edited_df['marketer'] = name
             edited_df['year'] = 2023
             edited_df = edited_df.replace(r'^\s*$', np.nan , regex=True)

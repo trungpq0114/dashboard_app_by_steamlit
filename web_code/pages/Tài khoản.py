@@ -42,7 +42,7 @@ if authentication_status:
                             .format(user="trungpq",
                                     pw="1234",
                                     db="test"))
-    @st.cache_data(ttl=150)
+    # @st.cache_data(ttl=150)
     def get_infor(username):
         engine = create_engine(connection_string_account_web.format(user=user_account,
                                                                     pw=password_account,
@@ -64,7 +64,7 @@ if authentication_status:
 
     role, pos = get_infor(username)
 
-    @st.cache_data(ttl=20)
+    # @st.cache_data(ttl=20)
     def get_data_account():
         engine = create_engine(f'mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",
@@ -75,7 +75,7 @@ if authentication_status:
         return df
 
     
-    @st.cache_data(ttl=20)
+    # @st.cache_data(ttl=20)
     def get_marketer_names():
         engine_full = create_engine('mysql+pymysql://trungpq:1234@103.170.118.214/test'
                     .format(user="trungpq",

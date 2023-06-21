@@ -40,5 +40,37 @@ def all_employee():
     query = ""
     for market in all_market():
         query = query + f""" UNION
-                            SELECT DISTINCT `user.name` employee from {market}.employee_temp"""
+                            SELECT DISTINCT `user.name` employee, '{market}' market from {market}.employee_temp"""
+    return query[6:]
+
+
+def all_product():
+    query = ""
+    for market in all_market():
+        query = query + f""" UNION
+                        SELECT DISTINCT product_name, '{market}' market from {market}.products """
+    return query[6:]
+
+
+def all_bill():
+    query = ""
+    for market in all_market():
+        query = query + f""" UNION
+                        SELECT	'{market}' market,	marketer, `date` , type, year(date) year, month(date) month, day(date) day, nap, thanh_toan, note
+                                FROM {market}.mkt_bill where nap <> 0 or thanh_toan <> 0 """
+    return query[6:]
+
+def all_spend():
+    query = ""
+    for market in all_market():
+        query = query + f""" UNION
+                        SELECT marketer, '{market}' market,year(date) year, month(date) month, day(date) day, date, channel, product_name, spend, note FROM {market}.mkt_spent m where spend > 0 """
+    return query[6:] + "ORDER BY date DESC"
+
+
+def all_product_name_mkt():
+    query = ""
+    for market in all_market():
+        query = query + f""" UNION
+                        SELECT DISTINCT product_name,marketer  from {market}.vt_mkt """
     return query[6:]
