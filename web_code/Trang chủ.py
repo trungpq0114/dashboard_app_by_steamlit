@@ -297,7 +297,9 @@ if authentication_status:
                                 options=list_product_list,
                             )
                             }
-                    , hide_index = False,use_container_width=True, num_rows='dynamic', key = "Check")
+                    , hide_index = False ,use_container_width=True, num_rows='dynamic', key = "Check").reset_index()
+            # st.text(st.session_state['Check'])
+            # st.dataframe(edited_df)
             edited_df['marketer'] = name
             edited_df['year'] = 2023
             edited_df = edited_df.replace(r'^\s*$', np.nan , regex=True)
@@ -366,7 +368,7 @@ if authentication_status:
                 df_bill_to_edit = df_selection_hoa_don[['month','day','type','nap', 'thanh_toan','note']]
 
                 df_bill_to_edit.index.name='STT'
-                edited_df_bill = st.experimental_data_editor(df_bill_to_edit, hide_index = False,use_container_width=True, num_rows='dynamic')
+                edited_df_bill = st.data_editor(df_bill_to_edit, hide_index = False,use_container_width=True, num_rows='dynamic')
             edited_df_bill['marketer'] = name
             edited_df_bill['year'] = 2023
             edited_df_bill = edited_df_bill.replace(r'^\s*$', np.nan , regex=True)
