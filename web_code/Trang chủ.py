@@ -218,10 +218,15 @@ if authentication_status:
             options=df["channel"].unique(),
             default=df["channel"].unique()
         )
+
         if st.session_state['role'] == "admin":
             list_product_list = df_product_names["product_name"].sort_values().unique()
         else:
             list_product_list = df_product_names.loc[df_product_names['marketer'] == name]["product_name"].sort_values().unique()
+
+        list_product_list = list(list_product_list)
+        list_product_list.extend(['SP test 1','SP test 2','SP test 3','SP test 4','SP test 5','SP test 6'])
+
         product_name = st.sidebar.multiselect(
             "Chọn sản phẩm đã chạy:",
             options=list_product_list,
@@ -295,6 +300,13 @@ if authentication_status:
                                 help="Lựa chọn tên sản phẩm",
                                 width="medium",
                                 options=list_product_list,
+                            ),
+                            "note": st.column_config.TextColumn(
+                                "Chú thích",
+                                help="Nếu là sản phẩm test, hãy nhập đầy đủ cả link và landing page",
+                                default="www.linktest.com : tensanphamtest",
+                                max_chars=500,
+                                validate="^[a-zA-]+\.[a-zA-]+\..+",
                             )
                             }
                     , hide_index = False ,use_container_width=True, num_rows='dynamic', key = "Check").reset_index()
